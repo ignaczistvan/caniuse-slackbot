@@ -1,6 +1,6 @@
 const logger = require('winston'); // TODO: Handle loglevel
 const Bot = require('slackbots');
-const MessageHelper = require('./messagehelper');
+const isAddressedForBot = require('./utils/isAddressedForBot');
 
 class CaniuseBot extends Bot {
   constructor(settings) {
@@ -26,7 +26,7 @@ class CaniuseBot extends Bot {
   }
 
   _onMessage(message) {
-    if (MessageHelper.isAddressedForBot(this, message)) {
+    if (isAddressedForBot(this, message)) {
       this._replyAnswer(message);
     }
   }
