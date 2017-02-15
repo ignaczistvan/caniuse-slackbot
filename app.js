@@ -1,13 +1,8 @@
-'use strict';
+const CaniuseBot = require('./src/caniusebot');
 
-var CaniuseBot = require('./src/caniusebot');
+const token = process.env.BOT_API_KEY;
+const name = process.env.BOT_NAME;
 
-var token = '';
-var name = 'caniusebot';
-
-var caniuseBot = new CaniuseBot({
-    token: token,
-    name: name
-});
+const caniuseBot = new CaniuseBot({ token, name });
 
 caniuseBot.run();
