@@ -1,5 +1,6 @@
 const logger = require('winston'); // TODO: Handle loglevel
 const Bot = require('slackbots');
+const MessageHelper = require('./messagehelper');
 
 class CaniuseBot extends Bot {
   constructor(settings) {
@@ -16,6 +17,8 @@ class CaniuseBot extends Bot {
 
   _onStart() {
     this._loadBotUser();
+    this.postMessageToUser('ignacz.istvan', 'Elindult a bot.');
+    logger.info('Elindultunk.');
   }
 
   _loadBotUser() {
@@ -23,35 +26,12 @@ class CaniuseBot extends Bot {
   }
 
   _onMessage(message) {
-    if (CaniuseBot._isChatMessage(message) &&
-      CaniuseBot._isChannelConversation(message) &&
-      !this._isFromCaniuseBot(message) &&
-      this._isMentioningCaniuseBot(message)
-    ) {
+    if (MessageHelper.isAddressedForBot(this, message)) {
       this._replyAnswer(message);
     }
   }
 
-  static _isChatMessage(message) {
-    return message.type === 'message' && Boolean(message.text);
-  }
-
-  static _isChannelConversation(message) {
-    return typeof message.channel === 'string' &&
-        message.channel[0] === 'D';
-  }
-
-  _isFromCaniuseBot(message) {
-    return message.user === this.user.id;
-  }
-
-  _isMentioningCaniuseBot(message) {
-    return message.text.toLowerCase().indexOf('caniusebot') > -1 ||
-        message.text.toLowerCase().indexOf(this.name) > -1;
-  }
-
   _replyAnswer(originalMessage) {
-    logger.info('MI?');
     this.postMessage(originalMessage.user, 'ASDFK', { as_user: true });
   }
 }
