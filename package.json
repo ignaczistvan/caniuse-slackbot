@@ -1,0 +1,31 @@
+{
+  "name": "caniuse-slackbot",
+  "version": "1.0.0",
+  "description": "Caniuse slackbot",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ignaczistvan/caniuse-slackbot.git"
+  },
+  "keywords": [
+    "caniuse",
+    "slack",
+    "slackbot",
+    "node",
+    "bot"
+  ],
+  "author": "Isti Dominik",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ignaczistvan/caniuse-slackbot/issues"
+  },
+  "homepage": "https://github.com/ignaczistvan/caniuse-slackbot#readme",
+  "dependencies": {
+    "caniuse-api": "^1.5.3",
+    "koa": "^1.2.5",
+    "slackbots": "^1.0.2"
+  }
+}
