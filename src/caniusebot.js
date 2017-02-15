@@ -1,5 +1,7 @@
 const logger = require('winston'); // TODO: Handle loglevel
+const caniuse = require('caniuse-api');
 const Bot = require('slackbots');
+const slackMessageMapper = require('./utils/slackMessageMapper');
 const isAddressedForBot = require('./utils/isAddressedForBot');
 
 class CaniuseBot extends Bot {
@@ -25,14 +27,21 @@ class CaniuseBot extends Bot {
     this.user = this.users.filter(user => user.name === this.name)[0];
   }
 
-  _onMessage(message) {
-    if (isAddressedForBot(this, message)) {
+  _onMessage(slackMessage) {
+    if (isAddressedForBot(this, slackMessage)) {
+      const message = slackMessageMapper(this, slackMessage);
+      logger.info(message);
       this._replyAnswer(message);
+      logger.info(`Új üzenet: ${slackMessage.text}`);
     }
   }
 
   _replyAnswer(originalMessage) {
-    this.postMessage(originalMessage.user, 'ASDFK', { as_user: true });
+    try {
+      this.postMessage(originalMessage.target, caniuse.getSupport(originalMessage.body));
+    } catch(e) {
+      this.postMessage(originalMessage.target, caniuse.find(originalMessage.body));
+    }
   }
 }
 
