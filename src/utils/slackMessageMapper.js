@@ -1,4 +1,4 @@
-const Message = require('../message');
+const Message = require('../Message');
 
 function parseMessageType(slackMessage) {
   if (slackMessage.channel[0] === 'C') return 'Group';
