@@ -1,6 +1,7 @@
 const logger = require('winston'); // TODO: Handle loglevel
 const caniuse = require('caniuse-api');
 const Bot = require('slackbots');
+const Controller = require('./controller');
 const slackMessageMapper = require('./utils/slackMessageMapper');
 const isAddressedForBot = require('./utils/isAddressedForBot');
 
@@ -10,6 +11,8 @@ class CaniuseBot extends Bot {
 
     this.settings = settings;
     this.settings.name = this.settings.name || 'caniusebot';
+    this.conversations = new Map();
+    this.controller = new Controller(this.conversations);
   }
 
   run() {
@@ -18,30 +21,20 @@ class CaniuseBot extends Bot {
   }
 
   _onStart() {
-    this._loadBotUser();
+    this.user = this.users.filter(user => user.name === this.name)[0];
     this.postMessageToUser('ignacz.istvan', 'Elindult a bot.');
     logger.info('Elindultunk.');
   }
 
-  _loadBotUser() {
-    this.user = this.users.filter(user => user.name === this.name)[0];
-  }
-
   _onMessage(slackMessage) {
-    if (isAddressedForBot(this, slackMessage)) {
-      const message = slackMessageMapper(this, slackMessage);
-      logger.info(message);
-      this._replyAnswer(message);
-      logger.info(`Új üzenet: ${slackMessage.text}`);
-    }
+    if (!isAddressedForBot(this, slackMessage)) return;
+    logger.info(`Új üzenet: ${slackMessage.text}`);
+    const message = slackMessageMapper(this, slackMessage);
+    this._reply(this.controller.onMessage(message));
   }
 
-  _replyAnswer(originalMessage) {
-    try {
-      this.postMessage(originalMessage.target, caniuse.getSupport(originalMessage.body));
-    } catch(e) {
-      this.postMessage(originalMessage.target, caniuse.find(originalMessage.body));
-    }
+  _reply(res) {
+    this.postMessage(res.target, res.body, res.params);
   }
 }
 
