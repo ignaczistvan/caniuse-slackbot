@@ -44,7 +44,7 @@ class CaniuseBot extends Bot {
 
   _startBot() {
     this.user = this.users.filter(user => user.name === this.name)[0];
-    this.postMessageToUser('ignacz.istvan', 'Elindult a bot.');
+    this.postMessageToUser('ignacz.istvan', 'Elindult a bot.', { as_user: true });
     this.logger.info('Elindultunk.');
   }
 
@@ -65,7 +65,7 @@ class CaniuseBot extends Bot {
 
   _routeRequest(req) {
     const conversation = this.conversations.get(
-      JSON.stringify({ target: req.target, user: req.user }),
+      JSON.stringify({ target: req.target, user: req.user })
     );
     if (conversation) {
       return conversation.iterator;
