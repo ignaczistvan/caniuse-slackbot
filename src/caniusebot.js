@@ -1,7 +1,4 @@
-const logger = require('winston'); // TODO: Handle loglevel
-// const caniuse = require('caniuse-api');
 const Bot = require('slackbots');
-const Controller = require('./controller');
 const { slackMessageMapper } = require('./utils');
 
 class CaniuseBot extends Bot {
@@ -9,10 +6,10 @@ class CaniuseBot extends Bot {
     super(settings);
 
     this.settings = settings;
+    this.logger = settings.logger;
     this.settings.name = this.settings.name || 'caniusebot';
     this.controllers = [];
     this.conversations = new Map();
-    this.controller = new Controller(this.conversations);
   }
 
   run() {
@@ -20,42 +17,64 @@ class CaniuseBot extends Bot {
     this.on('message', this._handleMessage);
   }
 
-  addController(pattern, callback) {
+  // TODO:
+  //  - Allow multiple patterns in array (?)
+  addController(controller) {
     this.controllers.push({
-      callback,
-      pattern: RegExp(pattern, 'gi'),
+      generator: controller.generator,
+      pattern: new RegExp(controller.pattern, 'gi'),
     });
+  }
+
+  _addConversation(res, iterator) {
+    const id = Symbol('id');
+    this.conversations.set(
+      JSON.stringify({ target: res.target, user: res.user }),
+      { id, iterator });
+
+    // Delete the conversation after 60 secs
+    this._expireConversation(JSON.stringify({ target: res.target, user: res.user }), id, 60000);
+  }
+
+  _expireConversation(key, id, ttl) {
+    setTimeout(() => {
+      if (this.conversations.get(key).id === id) this.conversations.delete(key);
+    }, ttl);
   }
 
   _startBot() {
     this.user = this.users.filter(user => user.name === this.name)[0];
     this.postMessageToUser('ignacz.istvan', 'Elindult a bot.');
-    logger.info('Elindultunk.');
+    this.logger.info('Elindultunk.');
   }
 
   _handleMessage(slackMessage) {
-    // If its obviosly not for us, dont do nothing
-    if (slackMessage.user === this.user.id) return;
-    if (slackMessage.type === 'message'
-      && slackMessage.subtype === undefined
-      && Boolean(slackMessage.text)) return;
-    logger.info(`Új üzenet: ${slackMessage.text}`);
+    // If its obviously not for us, dont do nothing
+    if (slackMessage.bot_id === this.user.id) return;
+    if (slackMessage.type !== 'message' || slackMessage.subtype !== undefined) return;
+    this.logger.debug('Új üzenet:', slackMessage);
+
     const req = slackMessageMapper(this, slackMessage); // Parse the incoming request
     const controller = this._routeRequest(req); // Find the right controller for the request
     // If there's no matching controller just go on - router takes care of error handling
     if (!controller) return;
-    const res = controller(req);
-    this._reply(res); // reply the "rendered" message back to the user
+    const res = controller.next(req);
+    if (!res.done) this._addConversation(res.value, controller);
+    this._reply(res.value); // reply the "rendered" message back to the user
   }
 
   _routeRequest(req) {
-    // ToDo:
-    //  - Találjuk meg, aki kezelni fogja:
-    //    - Conversation callback
-    //    - Regexp alapján controller
-    //    - Default controller
-    //  - Ha megvan a controller, akkor mielőtt ráküldjük, dobjunk type-ot
-    return req;
+    const conversation = this.conversations.get(
+      JSON.stringify({ target: req.target, user: req.user }),
+    );
+    if (conversation) {
+      return conversation.iterator;
+    }
+    const newConversation = this.controllers.find(controller => req.body.match(controller.pattern));
+    if (newConversation) {
+      return newConversation.generator(this, req);
+    }
+    return undefined;
   }
 
   _reply(res) {
