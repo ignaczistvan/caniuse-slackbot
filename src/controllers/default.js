@@ -2,16 +2,30 @@ const caniuse = require('caniuse-api');
 const supportView = require('../views/support');
 const chooseView = require('../views/chooseFeature');
 
-const pattern = new RegExp('^caniuse (.+)$', 'i');
+const patterns = [
+  {
+    type: 'group',
+    pattern: new RegExp('^caniuse (.+)$', 'i'),
+  },
+  {
+    type: 'direct',
+    pattern: new RegExp('^caniuse (.+)$', 'i'),
+  },
+  {
+    type: 'direct',
+    pattern: new RegExp('^(.+)$', 'i'),
+  },
+];
 
-function* generator(bot, req) {
-  const feature = req.body.match(pattern)[1];
-  if (Array.isArray(caniuse.find(feature))) {
+function* generator(bot, req, pattern) {
+  const featureString = req.body.match(pattern)[1];
+  const feature = caniuse.find(`${featureString}`);
+  if (Array.isArray(feature) && feature.length > 0) {
     let nextReq = yield {
       target: req.target,
       user: req.user,
       body: '',
-      params: chooseView(feature, caniuse.find(feature)),
+      params: chooseView(featureString, feature),
     };
     while (Array.isArray(caniuse.find(nextReq.body)) || caniuse.find(nextReq.body) === undefined) {
       nextReq = yield {
@@ -30,6 +44,15 @@ function* generator(bot, req) {
       body: '',
       params: supportView(nextReq.body, 'warning', caniuse.getSupport(nextReq.body)),
     };
+  } else if (Array.isArray(feature)) {
+    return {
+      target: req.target,
+      user: req.user,
+      body: `Sorry, I can't understand. Try _"hello ${bot.user.name}"_ for usage!`,
+      params: {
+        as_user: true,
+      },
+    };
   }
   return {
     target: req.target,
@@ -41,5 +64,5 @@ function* generator(bot, req) {
 
 module.exports = {
   generator,
-  pattern,
+  patterns,
 };

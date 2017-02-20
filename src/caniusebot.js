@@ -25,7 +25,21 @@ class CaniuseBot extends Bot {
    * Starts the bot with the added controllers added before
    */
   run() {
-    this.on('start', this._startBot);
+    this.on('start', () => {
+      this.user = this.users.filter(user => user.name === this.name)[0];
+      this.settings.admins.forEach((admin) => {
+        this.postMessageToUser(admin, 'Elindult a bot.', { as_user: true });
+      });
+      this.logger.info('Elindult a bot.');
+    });
+    this.on('close', () => {
+      this.settings.admins.forEach((admin) => {
+        this.postMessageToUser(admin, 'Leállt a bot.', { as_user: true });
+      });
+      this.logger.info('Leállt a bot');
+    });
+    this.on('error', e => this.logger.error('Hiba történt a Slack kapcsolódás közben', e));
+
     this.on('message', this._handleMessage);
   }
 
@@ -36,9 +50,12 @@ class CaniuseBot extends Bot {
    * @param {string} controller.pattern - RegExp pattern.It's used to assign messages to controller
    */
   addController(controller) {
-    this.controllers.push({
-      generator: controller.generator,
-      pattern: new RegExp(controller.pattern, 'gi'),
+    controller.patterns.forEach((pattern) => {
+      this.controllers.push({
+        generator: controller.generator,
+        pattern: pattern.pattern,
+        type: pattern.type,
+      });
     });
   }
 
@@ -69,20 +86,24 @@ class CaniuseBot extends Bot {
    */
   _expireConversation(key, id, ttl) {
     setTimeout(() => {
-      if (this.conversations.get(key).id === id) this.conversations.delete(key);
+      if (this.conversations.get(key) && this.conversations.get(key).id === id) this.conversations.delete(key);
     }, ttl);
   }
 
-  /**
-   * This function runs after when the bot is initialized
-   *  - Sets the Slack user object to the user property
-   *  - Sends message to the admins
-   * @private
-   */
-  _startBot() {
-    this.user = this.users.filter(user => user.name === this.name)[0];
-    this.settings.admins.forEach(admin => this.postMessageToUser(admin, 'Elindult a bot.', { as_user: true }));
-    this.logger.info('Elindultunk.');
+ /**
+ *
+ * @param slackMessage
+ * @returns {{target: string, timeStamp: string,user: string, messageType: string, body: string}}
+ */
+  _mapSlackMessage(slackMessage) {
+    const re = new RegExp(`<@${this.user.id}>`, 'gi');
+    return {
+      target: slackMessage.channel,
+      timeStamp: slackMessage.ts,
+      user: slackMessage.user,
+      messageType: slackMessage.channel[0] === 'C' ? 'group' : 'direct',
+      body: slackMessage.text.replace(re, this.settings.name),
+    };
   }
 
   /**
@@ -92,11 +113,11 @@ class CaniuseBot extends Bot {
    */
   _handleMessage(slackMessage) {
     // If its obviously not for us, dont do nothing
-    if (slackMessage.bot_id === this.user.id) return;
+    if (slackMessage.user === this.user.id) return;
     if (slackMessage.type !== 'message' || slackMessage.subtype !== undefined) return;
     this.logger.debug('Új üzenet:', slackMessage);
 
-    const req = mapSlackMessage(slackMessage); // Parse the incoming request
+    const req = this._mapSlackMessage(slackMessage); // Parse the incoming request
     const controller = this._routeRequest(req); // Find the right controller for the request
     // If there's no matching controller just go on - router takes care of error handling
     if (!controller) return;
@@ -123,9 +144,12 @@ class CaniuseBot extends Bot {
     if (conversation) {
       return conversation.iterator;
     }
-    const newConversation = this.controllers.find(controller => req.body.match(controller.pattern));
+    /* eslint arrow-body-style: 0 */
+    const newConversation = this.controllers.find((controller) => {
+      return req.body.match(controller.pattern) && req.messageType === controller.type;
+    });
     if (newConversation) {
-      return newConversation.generator(this, req);
+      return newConversation.generator(this, req, newConversation.pattern);
     }
     return undefined;
   }
@@ -141,22 +165,6 @@ class CaniuseBot extends Bot {
   _reply(res) {
     this.postMessage(res.target, res.body, res.params);
   }
-}
-
-/**
- *
- * @param slackMessage
- * @returns {{target: string, timeStamp: string,user: string, messageType: string, body: string}}
- */
-function mapSlackMessage(slackMessage) {
-  // const re = new RegExp(`(${bot.settings.name})|(<@${bot.user.id}>)`, 'gi');
-  return {
-    target: slackMessage.channel,
-    timeStamp: slackMessage.ts,
-    user: slackMessage.user,
-    messageType: slackMessage.channel[0] === 'C' ? 'Group' : 'Direct',
-    body: slackMessage.text,
-  };
 }
 
 module.exports = CaniuseBot;

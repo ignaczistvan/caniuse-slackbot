@@ -4,7 +4,7 @@
   "description": "Caniuse slackbot",
   "main": "app.js",
   "scripts": {
-    "run-dev": "node -r dotenv/config app.js",
+    "run-dev": "node -r dotenv/config bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
